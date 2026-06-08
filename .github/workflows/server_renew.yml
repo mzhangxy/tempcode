@@ -60,7 +60,8 @@ jobs:
           RENEW_URL: ${{ secrets.RENEW_URL }}
           TG_TOKEN: ${{ secrets.TG_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-          PROXY: http://127.0.0.1:10808 
+          PROXY: http://127.0.0.1:10808
+          NOPECHA_KEY: ${{ secrets.NOPECHA_KEY }}
         run: python main.py 
 
       - name: Upload Error Screenshots

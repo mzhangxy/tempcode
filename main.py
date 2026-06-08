@@ -41,7 +41,7 @@ def renew_host2play(url, proxy_url=None):
                     proxy_url = f"http://{proxy_url}"
                 proxy_config = {"server": proxy_url}
 
-            # 1. 以持久化上下文启动 Chromium (代理全局强制注入)
+            # 1. 以持久化上下文启动 Chromium
             context = p.chromium.launch_persistent_context(
                 user_data_dir,
                 headless=False,
@@ -53,23 +53,27 @@ def renew_host2play(url, proxy_url=None):
                     "--disable-dev-shm-usage",
                     "--disable-gpu",
                     "--disable-blink-features=AutomationControlled",
-                    # 【核心修改】强制整个浏览器内核（含插件）走本地代理
                     f"--proxy-server={proxy_url}",
-                    # 解决某些无头环境下的插件网络风控
                     "--ignore-certificate-errors", 
                     "--disable-web-security"
-                ],
+                ]
             )
 
-            # 2. 等待插件初始化并清理可能弹出的欢迎页
-            time.sleep(5)
-            print(f"📑 当前打开的标签页数量: {len(context.pages)}")
+            # =========================================================
+            # 2. 强行唤醒并注入 NopeCHA API Key (Plan B 核心)
+            # =========================================================
+            time.sleep(3)
             page = context.pages[0]
-            for idx, tab in enumerate(context.pages):
-                print(f"   -> 标签页 {idx} URL: {tab.url}")
-                # 如果 NopeCHA 弹出了 setup 页面，直接保留原页面操作
-                if "nopecha" in tab.url:
-                    print("   🧹 发现 NopeCHA 欢迎页，自动静默...")
+            
+            nopecha_key = os.getenv("NOPECHA_KEY")
+            if not nopecha_key:
+                print("❌ 警告: 未检测到 NOPECHA_KEY 环境变量，插件可能无法激活！")
+            else:
+                print(f"🔑 正在注入 NopeCHA API Key 并唤醒插件...")
+                # 访问 NopeCHA 的快捷配置链接，插件会自动拦截并保存 Key
+                page.goto(f"https://nopecha.com/setup#key={nopecha_key}", wait_until="load")
+                time.sleep(5) # 给插件后台几秒钟时间完成验证和初始化
+                print("✅ API Key 注入请求已发送。")
 
             # 3. 访问目标网址
             print(f"🌐 访问续期目标网址: {url}")

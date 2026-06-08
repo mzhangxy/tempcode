@@ -31,7 +31,7 @@ jobs:
         run: |
           echo "📦 正在下载 NopeCHA Chromium 插件..."
           mkdir -p extensions/nopecha
-          wget -O extensions/nopecha.zip https://github.com/NopeCHALLC/nopecha-extension/releases/latest/download/chromium_automation.zip
+          wget -O extensions/nopecha.zip https://github.com/NopeCHALLC/nopecha-extension/releases/latest/download/chromium.zip
 
           7z x -y extensions/nopecha.zip -oextensions/nopecha/
           echo "✅ NopeCHA 插件解压完成"

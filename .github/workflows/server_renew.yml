@@ -21,20 +21,17 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          # 移除了 ffmpeg，因为不再需要处理音频
           sudo apt-get install -y xvfb unzip p7zip-full
-          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
-          sudo apt-get install -y google-chrome-stable
 
       - name: Download and Unpack NopeCHA Extension
         run: |
           echo "📦 正在下载 NopeCHA Chromium 插件..."
           mkdir -p extensions/nopecha
           wget -O extensions/nopecha.zip https://github.com/NopeCHALLC/nopecha-extension/releases/latest/download/chromium.zip
-
+          # 确保解压到正确的层级
           7z x -y extensions/nopecha.zip -oextensions/nopecha/
-          echo "✅ NopeCHA 插件解压完成"
+          echo "📌 manifest.json 检查:"
+          cat extensions/nopecha/manifest.json | grep version || echo "未找到 manifest.json"
 
       - name: Install and Run Xray
         env:
@@ -43,26 +40,20 @@ jobs:
           echo "⬇️ 正在下载 Xray-core..."
           wget -q https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
           unzip -q Xray-linux-64.zip -d xray_bin
-          
-          echo "📝 正在写入节点配置..."
           echo "$V2RAY_CONFIG" > xray_bin/config.json
-          
-          echo "🚀 正在后台启动 Xray..."
           cd xray_bin
           nohup ./xray run -c config.json > xray.log 2>&1 &
           cd ..
-          
-          echo "⏳ 等待 Xray 核心启动 (5秒)..."
           sleep 5
-          
-          echo "🌐 测试家宽代理连通性..."
           curl -x http://127.0.0.1:10808 -I https://www.google.com/generate_204 || true
 
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          # 移除了 SpeechRecognition 和 pydub
-          pip install DrissionPage xvfbwrapper requests
+          pip install playwright xvfbwrapper requests
+          # 安装 Playwright 内置浏览器及其系统依赖
+          playwright install chromium
+          playwright install-deps chromium
 
       - name: Run Renew Script
         env:

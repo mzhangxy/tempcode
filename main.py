@@ -101,7 +101,7 @@ def renew_host2play(url, proxy_url=None):
         time.sleep(random.uniform(5, 8))   
 
         # =========================================================
-        # 4. 核心：旁观者模式等待 NopeCHA 破解
+        # 4. 核心：旁观者模式等待 NopeCHA 破解 (加入调试探针)
         # =========================================================
         solved_captcha = False
         anchor_frame = page.get_frame('xpath://iframe[contains(@src, "recaptcha/api2/anchor")]', timeout=5)
@@ -109,13 +109,29 @@ def renew_host2play(url, proxy_url=None):
         if anchor_frame:
             print("👁️ 侦测到 reCAPTCHA，开始监控 NopeCHA 工作状态...")
             
-            # 最大等待 NopeCHA 破解时间：120秒
+            # 【调试探针 1】打印所有标签页，检查是否有 NopeCHA 的欢迎页
+            print(f"📑 当前打开的标签页数量: {len(page.tab_ids)}")
+            for t_id in page.tab_ids:
+                try:
+                    t = page.browser.get_tab(t_id)
+                    print(f"   -> 标签页 URL: {t.url}")
+                except:
+                    pass
+
             max_wait_time = 120 
             check_interval = 2
             
             for i in range(int(max_wait_time / check_interval)):
-                # 检查方式 A: 检查隐藏表单 g-recaptcha-response 是否被写入了 Token
-                # DrissionPage 可以直接穿透找到 name=g-recaptcha-response 的元素
+                # 【调试探针 2】等待 10 秒如果还没反应，手动点一下 checkbox 唤醒插件
+                if i == 5: 
+                    try:
+                        print("👉 10秒未自动执行，尝试手动点击 checkbox 唤醒 NopeCHA...")
+                        anchor_box = anchor_frame.ele('#recaptcha-anchor', timeout=1)
+                        if anchor_box and anchor_box.attr('aria-checked') != 'true':
+                            anchor_box.click(by_js=False) # 尝试真实点击
+                    except Exception as e:
+                        print(f"⚠️ 手动唤醒点击失败: {e}")
+
                 token_ele = page.ele('@name=g-recaptcha-response', timeout=0.5)
                 if token_ele:
                     token_val = token_ele.attr('value')
@@ -124,7 +140,6 @@ def renew_host2play(url, proxy_url=None):
                         solved_captcha = True
                         break
 
-                # 检查方式 B: 检查 checkbox 是否变成了绿勾 (aria-checked="true")
                 try:
                     anchor_box = anchor_frame.ele('#recaptcha-anchor', timeout=0.5)
                     if anchor_box and anchor_box.attr('aria-checked') == 'true':
@@ -132,7 +147,6 @@ def renew_host2play(url, proxy_url=None):
                         solved_captcha = True
                         break
                 except:
-                    # 如果 iframe 被销毁或找不到了，说明极有可能前端已经验证通过收起弹窗了
                     pass
                 
                 if i % 5 == 0:
@@ -141,13 +155,16 @@ def renew_host2play(url, proxy_url=None):
                 
             if not solved_captcha:
                 msg = "❌ NopeCHA 破解超时 (2分钟内未获取到Token)"
+                print("📸 正在保存超时现场截图与源码...")
+                # 【调试探针 3】保存真实的屏幕截图，这比 HTML 源码直观 100 倍！
+                page.get_screenshot(path="error_timeout.jpg", full_page=True)
                 with open("error_timeout.html", "w", encoding="utf-8") as f:
                     f.write(page.html)
                 return success, msg
 
         else:
             print("⚠️ 未侦测到 reCAPTCHA，尝试直接进行最终续期。")
-            solved_captcha = True # 没出验证码也算过了
+            solved_captcha = True
 
         # 5. 提交最终续期
         if solved_captcha:

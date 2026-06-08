@@ -1,0 +1,80 @@
+name: Auto Renew Server Script
+
+on:
+  workflow_dispatch:
+  #schedule:
+  #  - cron: '0 */6 * * *'
+
+jobs:
+  run-renew:
+    runs-on: ubuntu-latest 
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10' 
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          # 移除了 ffmpeg，因为不再需要处理音频
+          sudo apt-get install -y xvfb unzip p7zip-full
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+          sudo apt-get install -y google-chrome-stable
+
+      - name: Download and Unpack NopeCHA Extension
+        run: |
+          echo "📦 正在下载 NopeCHA Chromium 插件..."
+          mkdir -p extensions/nopecha
+          wget -O extensions/nopecha.zip https://github.com/NopeCHALLC/nopecha-extension/releases/latest/download/chromium.zip
+          7z x -y extensions/nopecha.zip -oextensions/nopecha/
+          echo "✅ NopeCHA 插件解压完成"
+
+      - name: Install and Run Xray
+        env:
+          V2RAY_CONFIG: ${{ secrets.V2RAY_CONFIG }}
+        run: |
+          echo "⬇️ 正在下载 Xray-core..."
+          wget -q https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
+          unzip -q Xray-linux-64.zip -d xray_bin
+          
+          echo "📝 正在写入节点配置..."
+          echo "$V2RAY_CONFIG" > xray_bin/config.json
+          
+          echo "🚀 正在后台启动 Xray..."
+          cd xray_bin
+          nohup ./xray run -c config.json > xray.log 2>&1 &
+          cd ..
+          
+          echo "⏳ 等待 Xray 核心启动 (5秒)..."
+          sleep 5
+          
+          echo "🌐 测试家宽代理连通性..."
+          curl -x http://127.0.0.1:10808 -I https://www.google.com/generate_204 || true
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # 移除了 SpeechRecognition 和 pydub
+          pip install DrissionPage xvfbwrapper requests
+
+      - name: Run Renew Script
+        env:
+          RENEW_URL: ${{ secrets.RENEW_URL }}
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          PROXY: http://127.0.0.1:10808 
+        run: python main.py 
+
+      - name: Upload Error Screenshots
+        uses: actions/upload-artifact@v4
+        if: always() 
+        with:
+          name: debug-screenshots 
+          path: ./*.html 
+          retention-days: 5

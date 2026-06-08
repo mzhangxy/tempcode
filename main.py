@@ -55,31 +55,42 @@ def renew_host2play(url, proxy_url=None):
                     "--disable-blink-features=AutomationControlled",
                     f"--proxy-server={proxy_url}",
                     "--ignore-certificate-errors", 
-                    "--disable-web-security"
+                    "--disable-web-security",
+                    # 💥【核心杀招】彻底关闭跨域进程隔离，允许插件穿透 iframe！
+                    "--disable-features=IsolateOrigins,site-per-process"
                 ]
             )
 
             # =========================================================
-            # 2. 强行唤醒并注入 NopeCHA API Key (Plan B 核心)
+            # 2. 等待进程苏醒并注入 API Key
             # =========================================================
-            time.sleep(3)
+            print("⏳ 等待 NopeCHA 后台进程 (Service Worker) 完全激活...")
+            worker_ready = False
+            for _ in range(15):
+                if context.service_workers or context.background_pages:
+                    worker_ready = True
+                    break
+                time.sleep(1)
+                
+            if worker_ready:
+                print("✅ 插件后台进程已确认激活！")
+            else:
+                print("⚠️ 警告: 插件后台进程响应迟缓。")
+
             page = context.pages[0]
             
             nopecha_key = os.getenv("NOPECHA_KEY")
-            if not nopecha_key:
-                print("❌ 警告: 未检测到 NOPECHA_KEY 环境变量，插件可能无法激活！")
-            else:
-                print(f"🔑 正在注入 NopeCHA API Key 并唤醒插件...")
-                # 访问 NopeCHA 的快捷配置链接，插件会自动拦截并保存 Key
+            if nopecha_key:
+                print(f"🔑 正在注入 NopeCHA API Key...")
+                # 访问 NopeCHA 的快捷配置链接
                 page.goto(f"https://nopecha.com/setup#key={nopecha_key}", wait_until="load")
-                time.sleep(5) # 给插件后台几秒钟时间完成验证和初始化
-                print("✅ API Key 注入请求已发送。")
+                time.sleep(3) # 给插件后台缓冲时间
 
             # 3. 访问目标网址
             print(f"🌐 访问续期目标网址: {url}")
             page.goto(url, wait_until="domcontentloaded", timeout=60000)
             time.sleep(random.uniform(5, 8))
-
+            
             # 清理遮挡元素
             print("🧹 清理遮挡元素...")
             page.evaluate("""

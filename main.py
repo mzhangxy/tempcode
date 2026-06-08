@@ -41,7 +41,7 @@ def renew_host2play(url, proxy_url=None):
                     proxy_url = f"http://{proxy_url}"
                 proxy_config = {"server": proxy_url}
 
-            # 1. 以持久化上下文启动 Chromium
+            # 1. 以持久化上下文启动 Chromium (代理全局强制注入)
             context = p.chromium.launch_persistent_context(
                 user_data_dir,
                 headless=False,
@@ -52,9 +52,13 @@ def renew_host2play(url, proxy_url=None):
                     "--no-sandbox",
                     "--disable-dev-shm-usage",
                     "--disable-gpu",
-                    "--disable-blink-features=AutomationControlled"
+                    "--disable-blink-features=AutomationControlled",
+                    # 【核心修改】强制整个浏览器内核（含插件）走本地代理
+                    f"--proxy-server={proxy_url}",
+                    # 解决某些无头环境下的插件网络风控
+                    "--ignore-certificate-errors", 
+                    "--disable-web-security"
                 ],
-                proxy=proxy_config
             )
 
             # 2. 等待插件初始化并清理可能弹出的欢迎页

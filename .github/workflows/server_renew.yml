@@ -3,16 +3,23 @@ name: Auto Renew Server Script
 on:
   workflow_dispatch:
   #schedule:
-  #  - cron: '0 */6 * * *'
+  #  - cron: '0 */7 * * *'
 
 jobs:
   run-renew:
     runs-on: ubuntu-latest 
 
-    steps:
-      - name: Checkout repository
+    steps:      
+      - name: Checkout private repo
         uses: actions/checkout@v4
-
+        with:
+          repository: ${{ github.repository_owner }}/h2p-nopecha-key
+          token: ${{ secrets.PAT_TOKEN }}
+          path: private
+      
+      - name: 📂 移动脚本到工作目录
+        run: mv private/main.py main.py
+        
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -63,13 +70,3 @@ jobs:
           PROXY: http://127.0.0.1:10808
           NOPECHA_KEY: ${{ secrets.NOPECHA_KEY }}
         run: python main.py 
-
-      - name: Upload Error Screenshots
-        uses: actions/upload-artifact@v4
-        if: always() 
-        with:
-          name: debug-screenshots 
-          path: |
-            ./*.html
-            ./*.jpg
-          retention-days: 5
